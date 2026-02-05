@@ -3,7 +3,7 @@
 A browser-based messenger client that communicates with a server using **WebSockets** and a **custom binary packet protocol**.  
 This project implements session management and message exchange operations including ASSOCIATE, PUSH, and GET.
 
-Developed as part of the **EE5150 – Communication Networks** coursework.
+Developed as part of the **EE5150 – Communication Networks** coursework(IIT Madras).
 
 ---
 
@@ -173,13 +173,6 @@ Focus areas:
 - Binary packet framing
 - Client-server interaction
 - WebSocket transport usage
-
----
-
-## 👤 Author
-
-**P. Kavinesh Kumar**  
-Roll No: EE21B068
 
 ---
 
