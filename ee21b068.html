@@ -1,0 +1,113 @@
+<!-- Name: P. Kavinesh Kumar
+Roll No. : EE21B068 -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client</title>
+</head>
+<body>
+    <h2>WebSocket Client</h2>
+    <p id="status">Status: Not Connected</p>
+
+    <button onclick="associate()">Associate</button>
+    <input type="text" id="message" placeholder="Enter message">
+    <input type="number" id="receiver" placeholder="Receiver ID" min="0" max="255">
+    <button onclick="pushData()">Push Message</button>
+    <button onclick="getData()">Get Message</button>
+
+    <p>Log:</p>
+    <ul id="messages"></ul>
+
+    <script>
+        let ws;
+        let clientId = Math.floor(Math.random() * 256); // Random 1-byte client ID
+        let isAssociated = false;
+
+        function logMessage(text) {
+            console.log(text);
+            let li = document.createElement("li");
+            li.textContent = text;
+            document.getElementById("messages").appendChild(li);
+        }
+
+        function associate() {
+            ws = new WebSocket("ws://localhost:1234");
+
+            ws.binaryType = "arraybuffer"; // Expect binary data
+            ws.onopen = () => {
+                console.log("Connected to server");
+                //document.getElementById("status").innerText = "Status: Connected";
+
+                let packet = new Uint8Array([0, 0, clientId]); // [MANAGEMENT, ASSOCIATE, client_id]
+                ws.send(packet);
+                logMessage("Sent ASSOCIATE request");
+            };
+
+            ws.onmessage = (event) => {
+                let data = new Uint8Array(event.data);
+                console.log("Received:", data);
+
+                let type = data[0], message = data[1], id = data[2];
+
+                if (type === 0) { // MANAGEMENT
+                    if (message === 1) {
+                        isAssociated = true;
+                        document.getElementById("status").innerText = `Status: Associated (ID: ${id})`;
+                        logMessage("Session established");
+                    } else if(message === 3){
+                        logMessage("Unknown Error");
+                    } else {
+                        logMessage("Association Failed");
+                    }
+
+                }
+                else if (type === 1) { // CONTROL
+                    if (message === 1) logMessage("Buffer is empty");
+                    else if (message === 2) logMessage("Message successfully sent");
+                    else if (message === 3) logMessage("Receiver buffer full");
+                }
+                else if (type === 2) { // DATA
+                    let senderId = data[3], length = data[4];
+                    let payload = new TextDecoder().decode(data.slice(5, 5 + length));
+                    logMessage(`Received from client ID ${senderId}: ${payload}`);
+                }
+            };
+
+            ws.onclose = () => {
+                isAssociated = false;
+                document.getElementById("status").innerText = "Status: Disconnected";
+                logMessage("Disconnected from server");
+            };
+        }
+
+        function getData() {
+            if (!isAssociated) return logMessage("Not associated. Connect first.");
+            let packet = new Uint8Array([1, 0, clientId]); // [CONTROL, GET, client_id]
+            ws.send(packet);
+            logMessage("Sent GET request");
+        }
+
+        function pushData() {
+            if (!isAssociated) return logMessage("Not associated. Connect first.");
+            let message = document.getElementById("message").value;
+            let receiverId = parseInt(document.getElementById("receiver").value);
+
+            if (!message || isNaN(receiverId)) return logMessage("Invalid input");
+
+            let payload = new TextEncoder().encode(message);
+            let length = payload.length;
+            if (length > 254) return logMessage("Message too long");
+
+            let packet = new Uint8Array(5 + length);
+            packet.set([2, 1, clientId, receiverId, length]); // [DATA, PUSH, client_id, receiver_id, length]
+            packet.set(payload, 5);
+            
+            ws.send(packet);
+            logMessage(`Sent message to client ID ${receiverId}: ${message}`);
+        }
+    </script>
+</body>
+</html>
